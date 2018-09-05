@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -24,9 +25,12 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
 
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 import com.training.crudmakananapp.R;
 import com.training.crudmakananapp.adapter.ListMakananAdapter;
 import com.training.crudmakananapp.helper.MyConstant;
@@ -36,6 +40,7 @@ import com.training.crudmakananapp.model.DataKategoriItem;
 import com.training.crudmakananapp.model.DataMakananItem;
 import com.training.crudmakananapp.model.ResponseDataMakanan;
 import com.training.crudmakananapp.model.ResponseKategorimakan;
+import com.training.crudmakananapp.model.ResponseRegister;
 import com.training.crudmakananapp.network.MyRetrofitClient;
 import com.training.crudmakananapp.network.RestApi;
 
@@ -55,7 +60,7 @@ import retrofit2.Response;
 
 import static com.training.crudmakananapp.helper.MyConstant.STORAGE_PERMISSION_CODE;
 
-public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnRefreshListener {
+public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnRefreshListener, ListMakananAdapter.aksiklikitem {
 
     @BindView(R.id.spincarimakanan)
     Spinner spincarimakanan;
@@ -78,6 +83,15 @@ public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnR
     private String striduser;
     private String strtime;
     private SessionManager manager;
+    private Dialog dialog2;
+    private EditText edtidmakanan;
+    private Button btnupdate;
+    private Button btndelete;
+    private Target mTarget;
+    private Spinner spincariupdatekategori;
+    private List<DataMakananItem> dataMakanan;
+    private String stridmakanan;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -272,7 +286,7 @@ public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnR
             public void onResponse(Call<ResponseDataMakanan> call, Response<ResponseDataMakanan> response) {
                 if (response.isSuccessful()) {
                     dialog.dismiss();
-                    List<DataMakananItem> dataMakanan = response.body().getDataMakanan();
+                    dataMakanan = response.body().getDataMakanan();
                     String[] idmakanan = new String[dataMakanan.size()];
                     String[] namamakanan = new String[dataMakanan.size()];
                     for (int i = 0; i < dataMakanan.size(); i++) {
@@ -282,6 +296,7 @@ public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnR
                     listmakanan.setLayoutManager(new LinearLayoutManager(MakananActivity.this));
                     ListMakananAdapter adapter = new ListMakananAdapter(c, dataMakanan);
                     listmakanan.setAdapter(adapter);
+                    adapter.setOnClick(MakananActivity.this);
                 }
             }
 
@@ -321,5 +336,154 @@ public class MakananActivity extends MyFuction implements SwipeRefreshLayout.OnR
     public void onRefresh() {
         getdatamakanan(strkategori);
         refreshlayout.setRefreshing(false);
+    }
+
+    @Override
+    public void onItemClick(int position) {
+        dialog2 = new Dialog(MakananActivity.this);
+        dialog2.setTitle("Update data makanan");
+        dialog2.setCanceledOnTouchOutside(false);
+        dialog2.setContentView(R.layout.updatemakanan);
+        dialog2.show();
+        //inisialisasi
+        edtnamamakanan = (TextInputEditText) dialog2.findViewById(R.id.edtnamamakanan);
+        edtidmakanan = (EditText) dialog2.findViewById(R.id.edtidmakanan);
+        btnuploadmakanan = (Button) dialog2.findViewById(R.id.btnuploadmakanan);
+        imgpreview = (ImageView) dialog2.findViewById(R.id.imgupload);
+        btnupdate = (Button) dialog2.findViewById(R.id.btnupdate);
+        btndelete = (Button) dialog2.findViewById(R.id.btndelete);
+        spincariupdatekategori = (Spinner) dialog2.findViewById(R.id.spincarikategori);
+
+        mTarget = new Target() {
+            @Override
+            public void onBitmapLoaded(final Bitmap bitmap, Picasso.LoadedFrom from) {
+                //Do something
+//            ...
+
+                imgpreview.setImageBitmap(bitmap);
+            }
+
+            @Override
+            public void onBitmapFailed(Drawable errorDrawable) {
+
+            }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {
+
+            }
+        };
+
+        Picasso.with(c)
+                .load(MyConstant.IMAGE_URL + dataMakanan.get(position).getFotoMakanan().toString())
+                .into(mTarget);
+        //  imgpreview.setImageBitmap();
+
+        getkategorimakanan(spincariupdatekategori);
+        //isidata
+        edtnamamakanan.setText(dataMakanan.get(position).getMakanan());
+        edtidmakanan.setText(dataMakanan.get(position).getIdMakanan());
+        btnuploadmakanan.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                readstorage(MyConstant.REQ_FILE_CHOOSE);
+            }
+        });
+        spincariupdatekategori.setPrompt(dataMakanan.get(position).getNamaKategori());
+        btndelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stridmakanan = edtidmakanan.getText().toString();
+                hapusdatamakanan();
+            }
+        });
+
+        btnupdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    strpath = getPath(filepath);
+                    sessionManager = new SessionManager(MakananActivity.this);
+                    striduser = sessionManager.getIdUser();
+
+                } catch (Exception e) {
+//                    myToast("gambar terlalu besar \n silahkan pilih gambar yang lebih kecil");
+                    e.printStackTrace();
+                }
+
+                strnamamakan = edtnamamakanan.getText().toString();
+                stridmakanan = edtidmakanan.getText().toString();
+                if (TextUtils.isEmpty(strnamamakan)) {
+                    edtnamamakanan.setError("nama makanan tidak boleh kosong");
+                    edtnamamakanan.requestFocus();
+                    myanimation(edtnamamakanan);
+                } else if (imgpreview.getDrawable() == null) {
+                    myToast("gambar harus dipilih");
+                } else if (strpath == null) {
+                    myToast("gambar harus diganti");
+
+                } else {
+                    /**
+                     * Sets the maximum time to wait in milliseconds between two upload attempts.
+                     * This is useful because every time an upload fails, the wait time gets multiplied by
+                     * {@link UploadService#BACKOFF_MULTIPLIER} and it's not convenient that the value grows
+                     * indefinitely.
+                     */
+
+                    try {
+                        new MultipartUploadRequest(c, MyConstant.UPLOAD_UPDATE_URL)
+                                .addFileToUpload(strpath, "image")
+                                .addParameter("vsidmakanan", stridmakanan)
+                                .addParameter("vsnamamakanan", strnamamakan)
+                                .addParameter("vsidkategori", strkategori)
+                                .setNotificationConfig(new UploadNotificationConfig())
+                                .setMaxRetries(2)
+
+                                .startUpload();
+
+
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                        myToast(e.getMessage());
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        myToast(e.getMessage());
+                    }
+
+                    dialog2.dismiss();
+                }
+            }
+
+
+        });
+    }
+
+    private void hapusdatamakanan() {
+        showProgressDialog("proccess getdata makanan");
+        RestApi api = MyRetrofitClient.getInstaceRetrofit();
+        Call<ResponseRegister> modelmakananCall = api.deletedatamakanan(
+                stridmakanan
+        );
+        modelmakananCall.enqueue(new Callback<ResponseRegister>() {
+            @Override
+            public void onResponse(Call<ResponseRegister> call, Response<ResponseRegister> response) {
+                String result = response.body().getResult();
+                String msg = response.body().getMsg();
+                if (result.equals("1")) {
+                    myToast(msg);
+                    dialog2.dismiss();
+                    getdatamakanan(strkategori);
+                } else {
+                    myToast(msg);
+                    dialog2.setCancelable(false);
+                }
+                hideProgressDialog();
+            }
+
+            @Override
+            public void onFailure(Call<ResponseRegister> call, Throwable t) {
+                myToast(t.getMessage());
+            }
+        });
     }
 }

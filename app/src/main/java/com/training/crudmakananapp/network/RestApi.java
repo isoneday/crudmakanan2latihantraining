@@ -42,6 +42,12 @@ public interface RestApi {
             @Field("vsidkastrkategorimakanan") String idkategori
 
     );
+    @FormUrlEncoded
+    @POST("deletedatamakanan.php")
+    Call<ResponseRegister> deletedatamakanan(
+            @Field("vsidmakanan") String idmakanan
+
+    );
 
     @GET("kategorimakanan.php")
     Call<ResponseKategorimakan> getkategorimakanan();
