@@ -23,7 +23,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class LoginActivity extends MyFuction {
-
+//hack teo
     @BindView(R.id.regUsername)
     EditText regUsername;
     @BindView(R.id.regPass)
